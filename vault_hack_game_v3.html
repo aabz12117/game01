@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DARK CODE — نظام اختراق الخزنة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #000;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cairo', sans-serif;
+      overflow-x: hidden;
+    }
+    #scanline {
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+      pointer-events: none; z-index: 100;
+    }
+    #vg {
+      background: #000;
+      min-height: 540px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+    }
+    #vg-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; z-index: 10; user-select: none; }
+    #vg-logo .icon-box { width: 38px; height: 38px; border-radius: 8px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); display: flex; align-items: center; justify-content: center; }
+    #vg-logo svg { width: 20px; height: 20px; stroke: #3B82F6; fill: none; }
+    #vg-logo h1 { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: 20px; line-height: 1; letter-spacing: -1px; direction: ltr; }
+    #vg-logo h1 .w { color: #fff; } #vg-logo h1 .b { color: #3B82F6; }
+    #vg-screen { width: 100%; max-width: 480px; background: #050505; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; z-index: 10; position: relative; }
+    #vg-header { background: #020617; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    #vg-header-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3B82F6; letter-spacing: 2px; text-transform: uppercase; }
+    #vg-timer-box { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: #EF4444; letter-spacing: 1px; }
+    #vg-timer-box.low { animation: blink 0.5s infinite alternate; }
+    @keyframes blink { from{opacity:1} to{opacity:0.35} }
+    #vg-device-badge { font-family: 'Cairo', sans-serif; font-size: 10px; color: rgba(59,130,246,0.6); padding: 2px 8px; border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; }
+    #vg-arena { width: 100%; position: relative; background: #000; cursor: crosshair; height: 250px; }
+    #vg-progress-bar-wrap { padding: 10px 16px 4px; display: flex; align-items: center; gap: 10px; }
+    #vg-progress-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #9CA3AF; min-width: 50px; }
+    #vg-progress-track { flex: 1; height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+    #vg-progress-fill { height: 100%; width: 0%; background: #22C55E; border-radius: 3px; transition: width 0.3s; }
+    #vg-score-row { display: flex; justify-content: center; gap: 32px; padding: 6px 16px 10px; }
+    .vg-stat { text-align: center; }
+    .vg-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #fff; }
+    .vg-stat-lbl { font-size: 11px; color: #9CA3AF; margin-top: 1px; }
+    #vg-start-screen, #vg-win-screen, #vg-fail-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 20; background: rgba(0,0,0,0.93); border-radius: 16px; }
+    .vg-big-msg { font-family: 'Cairo', sans-serif; font-weight: 900; font-size: 22px; color: #fff; text-align: center; }
+    .vg-sub-msg { font-family: 'Cairo', sans-serif; font-size: 13px; color: #9CA3AF; text-align: center; line-height: 1.7; }
+    .vg-code-box { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.4); border-radius: 8px; padding: 10px 24px; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: #3B82F6; letter-spacing: 3px; }
+    .vg-btn { padding: 10px 28px; border-radius: 8px; border: none; cursor: pointer; font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 15px; background: #3B82F6; color: #000; transition: opacity 0.15s; }
+    .vg-btn:hover { opacity: 0.85; }
+    .vg-btn.sec { background: rgba(255,255,255,0.07); color: #fff; border: 1px solid rgba(255,255,255,0.12); }
+    .vg-panel { position: absolute; border-radius: 6px; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; border: 1px solid #22C55E; background: rgba(34,197,94,0.1); opacity: 0; transition: opacity 0.1s; z-index: 5; width: 48px; height: 48px; }
+    .vg-panel.visible { opacity: 1; }
+    #vg-flash { position: absolute; inset: 0; background: rgba(34,197,94,0.08); pointer-events: none; opacity: 0; z-index: 4; transition: opacity 0.12s; }
+    #vg-flash.on { opacity: 1; }
+    .vg-miss-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: rgba(239,68,68,0.4); border: 1px solid rgba(239,68,68,0.6); pointer-events: none; z-index: 3; transform: translate(-50%,-50%); animation: miss-fade 0.5s forwards; }
+    @keyframes miss-fade { from{opacity:1;transform:translate(-50%,-50%) scale(1)} to{opacity:0;transform:translate(-50%,-50%) scale(0.2)} }
+    .vg-grid-line { position: absolute; pointer-events: none; opacity: 0.04; }
+    .vg-grid-h { width: 100%; height: 1px; background: #3B82F6; }
+    .vg-grid-v { width: 1px; height: 100%; background: #3B82F6; }
+    #vg-win-screen .vg-big-msg { color: #22C55E; }
+    #vg-fail-screen .vg-big-msg { color: #EF4444; }
+    #vg-hint { font-size: 11px; color: rgba(59,130,246,0.45); text-align: center; padding: 3px 0 6px; font-family: 'Cairo', sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="scanline"></div>
+  <div id="vg">
+    <div id="vg-logo">
+      <div class="icon-box">
+        <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="7 8 11 12 7 16"/><line x1="13" y1="16" x2="17" y2="16"/>
+        </svg>
+      </div>
+      <h1><span class="w">DARK</span><span class="b">CODE</span></h1>
+    </div>
+
+    <div id="vg-screen">
+      <div id="vg-header">
+        <span id="vg-header-title">VAULT HACK SYSTEM</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="vg-device-badge">📱 جوال</span>
+          <span id="vg-timer-box">30ث</span>
+        </div>
+      </div>
+
+      <div id="vg-progress-bar-wrap">
+        <span id="vg-progress-label">0 / ?</span>
+        <div id="vg-progress-track"><div id="vg-progress-fill"></div></div>
+      </div>
+
+      <div id="vg-arena">
+        <div class="vg-grid-line vg-grid-h" style="top:33%"></div>
+        <div class="vg-grid-line vg-grid-h" style="top:66%"></div>
+        <div class="vg-grid-line vg-grid-v" style="left:25%"></div>
+        <div class="vg-grid-line vg-grid-v" style="left:50%"></div>
+        <div class="vg-grid-line vg-grid-v" style="left:75%"></div>
+        <div id="vg-flash"></div>
+      </div>
+
+      <div id="vg-score-row">
+        <div class="vg-stat"><div class="vg-stat-val" id="vg-found">0</div><div class="vg-stat-lbl">وجدت</div></div>
+        <div class="vg-stat"><div class="vg-stat-val" id="vg-goal-val" style="color:#3B82F6">?</div><div class="vg-stat-lbl">الهدف</div></div>
+        <div class="vg-stat"><div class="vg-stat-val" id="vg-miss-count" style="color:#EF4444">0</div><div class="vg-stat-lbl">خطأ</div></div>
+      </div>
+
+      <div id="vg-hint">اضغط في أي مكان على الشاشة المظلمة لإيجاد ⚙️</div>
+
+      <div id="vg-start-screen">
+        <div class="vg-big-msg">🔐 نظام اختراق الخزنة</div>
+        <div class="vg-sub-msg" id="vg-start-sub">جاري تحديد صعوبة الجهاز...</div>
+        <button class="vg-btn" id="vg-start-btn">ابدأ الاختراق</button>
+      </div>
+
+      <div id="vg-win-screen" style="display:none">
+        <div class="vg-big-msg">🎉 تم الاختراق بنجاح</div>
+        <div class="vg-sub-msg" id="vg-win-sub">وجدت كل اللوحات!</div>
+        <div class="vg-code-box">HACK120120</div>
+        <button class="vg-btn sec" id="vg-restart-win">العب مجدداً</button>
+      </div>
+
+      <div id="vg-fail-screen" style="display:none">
+        <div class="vg-big-msg">❌ فشل الاختراق</div>
+        <div class="vg-sub-msg" id="vg-fail-sub">انتهى الوقت!</div>
+        <button class="vg-btn" id="vg-restart-fail">حاول مجدداً</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const TIME = 30;
+      const PW = 48, PH = 48;
+      const SHOW_MS = 850;
+
+      function isMobile() {
+        const ua = navigator.userAgent;
+        const isTablet = /iPad|Tablet/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua));
+        const isMob = /Android|iPhone|iPod/i.test(ua) && !isTablet;
+        if (isMob) return true;
+        if (isTablet) return false;
+        return window.innerWidth <= 600;
+      }
+
+      const mobile = isMobile();
+      const MIN_GOAL = mobile ? 10 : 5;
+      const MAX_GOAL = mobile ? 20 : 10;
+
+      const badge = document.getElementById('vg-device-badge');
+      badge.textContent = mobile ? '📱 جوال' : (window.innerWidth <= 1024 ? '📟 تابلت' : '🖥️ كمبيوتر');
+
+      const startSub = document.getElementById('vg-start-sub');
+      startSub.innerHTML = mobile
+        ? 'جوال: ابحث عن <b style="color:#3B82F6">10–20</b> لوحة ⚙️ خلال 30 ثانية'
+        : 'كمبيوتر/تابلت: ابحث عن <b style="color:#3B82F6">5–10</b> لوحات ⚙️ خلال 30 ثانية';
+
+      let goal = MIN_GOAL, found = 0, misses = 0, timeLeft = TIME, running = false;
+      let interval = null, panelEl = null, panelX = 0, panelY = 0, panelVisible = false, panelTimeout = null;
+
+      const arena = document.getElementById('vg-arena');
+      const flash = document.getElementById('vg-flash');
+      const timerEl = document.getElementById('vg-timer-box');
+      const progressLabel = document.getElementById('vg-progress-label');
+      const progressFill = document.getElementById('vg-progress-fill');
+      const foundEl = document.getElementById('vg-found');
+      const goalValEl = document.getElementById('vg-goal-val');
+      const missEl = document.getElementById('vg-miss-count');
+      const startScreen = document.getElementById('vg-start-screen');
+      const winScreen = document.getElementById('vg-win-screen');
+      const failScreen = document.getElementById('vg-fail-screen');
+
+      function makePanel() {
+        if (panelEl) panelEl.remove();
+        panelEl = document.createElement('div');
+        panelEl.className = 'vg-panel';
+        panelEl.textContent = '⚙️';
+        arena.appendChild(panelEl);
+      }
+
+      function placePanel() {
+        const aw = arena.offsetWidth || 360;
+        const ah = arena.offsetHeight || 250;
+        panelX = Math.floor(Math.random() * (aw - PW - 16)) + 8;
+        panelY = Math.floor(Math.random() * (ah - PH - 10)) + 5;
+        panelEl.style.left = panelX + 'px';
+        panelEl.style.top = panelY + 'px';
+      }
+
+      function showPanel() {
+        clearTimeout(panelTimeout);
+        placePanel();
+        panelEl.classList.add('visible');
+        panelVisible = true;
+        panelTimeout = setTimeout(() => {
+          panelEl.classList.remove('visible');
+          panelVisible = false;
+          setTimeout(showPanel, 350 + Math.random() * 700);
+        }, SHOW_MS);
+      }
+
+      function updateUI() {
+        timerEl.textContent = timeLeft + 'ث';
+        timerEl.className = timeLeft <= 8 ? 'low' : '';
+        progressLabel.textContent = found + ' / ' + goal;
+        progressFill.style.width = (found / goal * 100) + '%';
+        foundEl.textContent = found;
+        missEl.textContent = misses;
+      }
+
+      function startGame() {
+        goal = Math.floor(Math.random() * (MAX_GOAL - MIN_GOAL + 1)) + MIN_GOAL;
+        found = 0; misses = 0; timeLeft = TIME; running = true;
+        startScreen.style.display = 'none';
+        winScreen.style.display = 'none';
+        failScreen.style.display = 'none';
+        goalValEl.textContent = goal;
+        makePanel();
+        updateUI();
+        clearInterval(interval);
+        interval = setInterval(() => {
+          timeLeft--;
+          updateUI();
+          if (timeLeft <= 0) endGame(false);
+        }, 1000);
+        setTimeout(showPanel, 500);
+      }
+
+      function endGame(win) {
+        running = false;
+        clearInterval(interval);
+        clearTimeout(panelTimeout);
+        if (panelEl) { panelEl.classList.remove('visible'); panelVisible = false; }
+        if (win) {
+          document.getElementById('vg-win-sub').textContent = 'وجدت ' + goal + ' لوحة بنجاح! 🎯';
+          winScreen.style.display = 'flex';
+        } else {
+          document.getElementById('vg-fail-sub').textContent = 'وجدت ' + found + ' من ' + goal + ' لوحة فقط';
+          failScreen.style.display = 'flex';
+        }
+      }
+
+      function addMissDot(x, y) {
+        const dot = document.createElement('div');
+        dot.className = 'vg-miss-dot';
+        dot.style.left = x + 'px';
+        dot.style.top = y + 'px';
+        arena.appendChild(dot);
+        setTimeout(() => dot.remove(), 500);
+      }
+
+      function handleTap(cx, cy) {
+        if (!running) return;
+        if (panelVisible && cx >= panelX && cx <= panelX + PW && cy >= panelY && cy <= panelY + PH) {
+          found++;
+          panelEl.classList.remove('visible');
+          panelVisible = false;
+          clearTimeout(panelTimeout);
+          flash.classList.add('on');
+          setTimeout(() => flash.classList.remove('on'), 180);
+          updateUI();
+          if (found >= goal) { endGame(true); return; }
+          setTimeout(showPanel, 250 + Math.random() * 500);
+        } else {
+          misses++;
+          addMissDot(cx, cy);
+          updateUI();
+        }
+      }
+
+      arena.addEventListener('click', function(e) {
+        const rect = arena.getBoundingClientRect();
+        handleTap(e.clientX - rect.left, e.clientY - rect.top);
+      });
+
+      arena.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        const rect = arena.getBoundingClientRect();
+        const t = e.changedTouches[0];
+        handleTap(t.clientX - rect.left, t.clientY - rect.top);
+      }, { passive: false });
+
+      document.getElementById('vg-start-btn').addEventListener('click', startGame);
+      document.getElementById('vg-restart-win').addEventListener('click', startGame);
+      document.getElementById('vg-restart-fail').addEventListener('click', startGame);
+    })();
+  </script>
+</body>
+</html>
